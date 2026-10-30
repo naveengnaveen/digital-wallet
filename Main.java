@@ -1,26 +1,28 @@
-import com.wallet.service.*;
-import com.wallet.support.WalletData.*;
+import com.wallet.CLI.WalletCli;
+import com.wallet.service.BankAccountService;
+import com.wallet.service.DisputeService;
+import com.wallet.service.ReversalService;
+import com.wallet.service.TransactionService;
+import com.wallet.service.TransferService;
+import com.wallet.service.UserService;
+import com.wallet.service.WalletService;
 
-/** Small smoke-test demo for the standalone Member 2 module. */
+/**
+ * M1: entry point. Wires services together and starts the CLI.
+ * TODO (after M3 finishes repositories + DataSeeder): create repositories first, pass them into the
+ * services, and call DataSeeder.seed(...) before cli.start(). Constructors below will change then.
+ */
 public class Main {
     public static void main(String[] args) {
-        Store store = new Store();
-        UserService users = new UserService(store);
-        BankAccountService banks = new BankAccountService(store);
-        WalletService wallets = new WalletService(store);
-        TransferService transfers = new TransferService(store);
-        RewardService rewards = new RewardService(store);
+        UserService userService = new UserService();
+        BankAccountService bankService = new BankAccountService();
+        TransactionService txnService = new TransactionService();
+        WalletService walletService = new WalletService(txnService);
+        TransferService transferService = new TransferService(userService, walletService, txnService);
+        DisputeService disputeService = new DisputeService(txnService);
+        ReversalService reversalService = new ReversalService(disputeService, txnService);
 
-        User alice = users.register("Alice", "9876543210", "1234");
-        User bob = users.register("Bob", "9876543211", "4321");
-        banks.link(alice.id, "ALICE-001", 20000);
-        wallets.addMoney(alice.id, "ALICE-001", 1000);
-        Transaction transfer = transfers.transfer(alice.id, bob.phone, 500);
-        CashbackRecord cashback = rewards.rewardFor(transfer);
-
-        System.out.println("Transfer status: " + transfer.status);
-        System.out.println("Alice wallet balance (rupees): " + store.walletsByUserId.get(alice.id).balanceRupees());
-        System.out.println("Bob wallet balance (rupees): " + store.walletsByUserId.get(bob.id).balanceRupees());
-        System.out.println("Cashback awarded (paise): " + (cashback == null ? 0 : cashback.amountPaise));
+        new WalletCli(userService, bankService, walletService, transferService,
+                txnService, disputeService, reversalService).start();
     }
 }

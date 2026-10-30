@@ -1,0 +1,58 @@
+DIGITAL WALLET AND UPI APP: HIGH-LEVEL SYSTEM DIAGRAM
+(Owner: M1. Text diagram; redraw in draw.io / Lucidchart for submission if an image is needed.)
+
+                          +---------------------------+
+                          |   CLI LAYER (M1)          |
+                          |   WalletCli, UserMenu,    |
+                          |   WalletMenu, TransferMenu|
+                          |   HistoryMenu, AdminMenu  |
+                          +-------------+-------------+
+                                        |
+                                        v
++----------------------------------------------------------------------------+
+|                          SERVICE LAYER (M2)                                |
+|                                                                            |
+|  Module 1                Module 2             Module 3                     |
+|  UserService             WalletService        TransferService              |
+|  BankAccountService      (add money,          PinSecurityService           |
+|  (register, KYC,          withdraw)           (PIN, 3 tries, 24h lock)     |
+|   link/unlink banks)                                                       |
+|                                                                            |
+|  Module 4                                     Module 5                     |
+|  TransactionService (history, duplicate)      RewardService (cashback)     |
+|  DisputeService, ReversalService                                           |
++------------------+-----------------------------------+---------------------+
+                   |                                   |
+                   v                                   v
+     +-----------------------------+      +-------------------------------+
+     | REPOSITORY LAYER (M3)       |      | PAYMENT LAYER (M4)            |
+     | User, Wallet, BankAccount,  |      | Transaction (abstract)        |
+     | Transaction, Dispute,       |      |  - AddMoneyTransaction        |
+     | Cashback repositories       |      |  - WithdrawTransaction        |
+     | (HashMap / List)            |      |  - TransferTransaction        |
+     +--------------+--------------+      |  - CashbackTransaction        |
+                    |                     |  - RefundTransaction          |
+                    v                     |  each overrides execute()     |
+     +-----------------------------+      +---------------+---------------+
+     | MODELS (M4)                 |<----------------------+
+     | User > Customer, Admin      |
+     | Account > Wallet, BankAccount|
+     | Dispute, CashbackRecord     |
+     | Enums                       |
+     +-----------------------------+
+
+
+MODULE INTERACTION (main flows)
+
+ 1. Add money     : CLI -> WalletService -> BankAccount.debit + Wallet.credit -> TransactionRepository
+ 2. Transfer      : CLI -> TransferService
+                       -> PinSecurityService (verify PIN)
+                       -> TransactionService.isDuplicate (1 min rule)
+                       -> TransferTransaction.execute (debit sender + credit receiver, rollback on failure)
+                       -> RewardService.giveCashback (if Success and amount >= 500)
+ 3. Dispute       : CLI -> DisputeService (Success transfer, within 24h) -> DisputeRepository
+ 4. Reversal      : Admin CLI -> ReversalService
+                       -> RefundTransaction.execute (debit receiver, credit sender)
+                       -> Pending if receiver balance is low
+                       -> RewardService reverses the cashback too
+ 5. History       : CLI -> TransactionService (latest first; filter by type, status, date range)

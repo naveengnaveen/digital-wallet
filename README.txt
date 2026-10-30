@@ -1,27 +1,59 @@
-C28 - Member 2 Service Layer (standalone practice version)
+DIGITAL WALLET AND UPI PAYMENT APP (C28)
+Console application, Java, in-memory storage.
 
-This ZIP contains:
-- 9 service classes with working starter business logic.
-- WalletData.java: TEMPORARY in-memory models/store so Member 2 can compile and practise before teammates finish.
-- Main.java: small smoke-test demo.
-- No external libraries required. Java 17 or later is recommended.
+HOW TO RUN
+----------
+From the C28/ folder:
 
-Run from this folder:
-    javac -d out Main.java src/com/wallet/support/WalletData.java src/com/wallet/service/*.java
+  Linux / Mac:
+    mkdir -p out
+    javac -d out Main.java $(find src -name "*.java")
     java -cp out Main
 
-IMPORTANT TEAM INTEGRATION NOTES:
-1. WalletData.java is only a temporary local support layer. Member 3 will own repositories/data storage; Member 4 will own the final models/enums.
-2. Do not overwrite your teammates' files or merge this temporary WalletData.java as the final shared model.
-3. Before integration, agree on constructors, method signatures, return types, and exception strategy with Members 3 and 4.
-4. Business rules here are a learning baseline. Confirm the assignment's exact interpretation with your team (especially reversal, cashback eligibility, and daily/monthly limits).
-5. PIN values are plain text in this practice version. In a real wallet application, store a secure salted hash and never log or expose PINs.
+  Windows (PowerShell):
+    mkdir out
+    javac -d out Main.java (Get-ChildItem -Recurse src -Filter *.java).FullName
+    java -cp out Main
 
-Git workflow (after copying into the team's C28 repo):
-    git checkout -b m2-service
-    git status
-    git add src/com/wallet/service/
-    git commit -m "M2: implement service layer"
-    git push -u origin m2-service
+Requires JDK 17 or later.
 
-Only add WalletData.java / Main.java to your team branch if the team explicitly agrees. The shared project already has its own Main.java and Member 4 models.
+LAYERS
+------
+CLI -> Service -> Repository -> Models / Payment
+Each layer calls only the layer below it.
+
+TEAM OWNERSHIP
+--------------
+M1  CLI layer         : Main.java, README.txt, docs/System_diagram, src/com/wallet/CLI/*
+M2  Service layer     : src/com/wallet/service/*
+M3  Repository + data : src/com/wallet/repository/*, DataSeeder, docs/ER_diagram, docs/SQL_queries.sql
+M4  Models + Payment  : src/com/wallet/models/*, src/com/wallet/payment/*
+
+STUBS (temporary)
+-----------------
+The files below currently hold simple fake code so the CLI compiles and can be demoed.
+The owner replaces them with the real implementation (keep the public method signatures):
+  service/*          -> M2
+  models/User, Customer, Admin, enums/*  -> M4
+  payment/Transaction                    -> M4
+  exception/WalletException              -> keep as the base exception
+
+DEMO LOGINS WHILE STUBS ARE IN USE
+----------------------------------
+  Customer : register a new user from the main menu
+  Admin    : phone 9999999999, PIN 0000
+
+TEST SCENARIOS
+--------------
+1. Register user A and user B (phone 10 digits, PIN 4 digits). Duplicate phone must be rejected.
+2. Login as A. Link a bank account. Linking a 4th account must be rejected.
+3. Add money below Rs.10 and above Rs.50,000 must be rejected. Valid amount must succeed.
+4. Withdraw more than the wallet balance must be rejected.
+5. Send money to B using B's phone. Self-transfer, unknown receiver, wrong PIN must be rejected.
+6. Transfer above Rs.10,000 must be rejected. Total above Rs.25,000 in a day must be rejected.
+7. Send the same amount to the same receiver twice within 1 minute: second must be rejected.
+8. Transfer of Rs.500 or more must give cashback (1%, max Rs.20 per txn, Rs.100 per month).
+9. View history: latest first. Try filters by type, status and date range (yyyy-MM-dd).
+10. Raise a dispute on a Success transfer. Login as Admin and approve the reversal.
+11. Reversal when receiver balance is low must stay Pending. Use "Retry pending reversals" later.
+12. Admin blocks a user: that user must not be able to log in or transact.
